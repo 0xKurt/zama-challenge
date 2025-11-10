@@ -5,6 +5,7 @@ A simple guide for using the Rock-Paper-Scissors game contract.
 ## Prerequisites
 
 You need:
+
 - Node.js (version 20 or higher)
 - npm (version 7 or higher)
 - Basic knowledge of how to use command line
@@ -38,30 +39,30 @@ sequenceDiagram
 
     P1->>Contract: createGame(player2)
     Contract-->>P1: gameId
-    
+
     Note over P1,FHEVM: Encrypt move using FHEVM
     P1->>FHEVM: Encrypt move (1,2, or 3)
     FHEVM-->>P1: encryptedMove + ZK proof
-    
+
     P1->>Contract: submitMove(gameId, encryptedMove, proof)
     Contract->>FHEVM: Verify ZK proof
     FHEVM-->>Contract: Valid
-    
+
     Note over P2,FHEVM: Encrypt move using FHEVM
     P2->>FHEVM: Encrypt move (1,2, or 3)
     FHEVM-->>P2: encryptedMove + ZK proof
-    
+
     P2->>Contract: submitMove(gameId, encryptedMove, proof)
     Contract->>FHEVM: Verify ZK proof
     FHEVM-->>Contract: Valid
-    
+
     Note over Contract: Both moves submitted
     Contract->>Contract: Compute result using FHE arithmetic
     Contract->>Contract: (move1 + 3 - move2) = [1,5]
-    
+
     P1->>Contract: getResult(gameId)
     Contract-->>P1: encryptedResult
-    
+
     P1->>FHEVM: Decrypt result
     FHEVM-->>P1: decryptedValue [1,5]
     P1->>P1: Apply modulo 3 → final result
@@ -78,6 +79,7 @@ sequenceDiagram
 ### Result Values
 
 After getting the result:
+
 - `0` = tie
 - `1` = Player1 wins
 - `2` = Player2 wins
@@ -111,16 +113,19 @@ npx hardhat --network localhost deploy
 ### 4. Play a Game
 
 **Two-player mode:**
+
 ```bash
 npx hardhat --network localhost task:game:play --move1 1 --move2 2
 ```
 
 **Single-player mode:**
+
 ```bash
 npx hardhat --network localhost task:game:play-single --move 1
 ```
 
-This creates a game, submits moves, and shows the result. In single-player mode, the opponent's move is generated automatically using on-chain randomness.
+This creates a game, submits moves, and shows the result. In single-player mode, the opponent's move is generated
+automatically using on-chain randomness.
 
 ## Using the Contract
 
@@ -138,12 +143,14 @@ See the test files for complete examples.
 ### `createGame(player2)`
 
 Creates a new game. Returns a game ID.
+
 - For two-player mode: pass the address of player2
 - For single-player mode: pass `address(0)` (zero address)
 
 ### `submitMove(gameId, encryptedMove, proof)`
 
-Submits your encrypted move. In single-player mode, the opponent's move is automatically generated and the result is computed immediately. In two-player mode, the result is computed when both players submit.
+Submits your encrypted move. In single-player mode, the opponent's move is automatically generated and the result is
+computed immediately. In two-player mode, the result is computed when both players submit.
 
 ### `getResult(gameId)`
 
@@ -156,21 +163,26 @@ Shows game status (who submitted, if result is ready, single-player mode, etc.)
 ## Troubleshooting
 
 **Can't connect to localhost?**
+
 - Make sure you started `npx hardhat node` first
 
 **No deployment found?**
+
 - Run `npx hardhat --network localhost deploy`
 
 **Result not computed?**
+
 - Both players need to submit their moves first
 - Check status with: `npx hardhat --network localhost task:game:info --game-id 0`
 
 **Invalid move?**
+
 - Use 1 (Rock), 2 (Paper), or 3 (Scissors)
 
 ## Testing
 
 Run tests:
+
 ```bash
 npm test
 ```
@@ -202,4 +214,3 @@ npx hardhat --network localhost task:game:play --move1 1 --move2 2
 # Play complete single-player game
 npx hardhat --network localhost task:game:play-single --move 1
 ```
-

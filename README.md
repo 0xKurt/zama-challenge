@@ -1,6 +1,8 @@
 # FHERockPaperScissors
 
-A confidential Rock-Paper-Scissors game built with Fully Homomorphic Encryption (FHE) using Zama's FHEVM protocol. Players can play against each other or against an on-chain random opponent, with moves remaining encrypted throughout the game.
+A confidential Rock-Paper-Scissors game built with Fully Homomorphic Encryption (FHE) using Zama's FHEVM protocol.
+Players can play against each other or against an on-chain random opponent, with moves remaining encrypted throughout
+the game.
 
 ## Features
 
@@ -157,6 +159,7 @@ npm test
 ```
 
 Tests cover:
+
 - Game creation and validation
 - Move submission
 - All 9 possible game outcomes

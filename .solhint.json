@@ -7,6 +7,10 @@
     "max-line-length": ["error", 120],
     "named-parameters-mapping": "warn",
     "no-console": "off",
-    "not-rely-on-time": "off"
+    "not-rely-on-time": "off",
+    "gas-indexed-events": "warn",
+    "gas-struct-packing": "warn",
+    "gas-strict-inequalities": "warn",
+    "gas-increment-by-one": "warn"
   }
 }

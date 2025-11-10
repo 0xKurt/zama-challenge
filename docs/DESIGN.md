@@ -1,5 +1,10 @@
 # FHERockPaperScissors - Design Documentation
 
+## Design Decisions
+
+If I would have made something different, I would have used Foundry, but I couldn't find a template and for simplicity I
+ran with Hardhat.
+
 ## Issue Triage Process
 
 When something goes wrong, here's how to figure out what happened and fix it.
@@ -18,6 +23,7 @@ When something goes wrong, here's how to figure out what happened and fix it.
 Transactions fail with "nonce too low" error when playing multiple games quickly.
 
 **What you see:**
+
 - Transaction fails
 - Game state doesn't update
 - Happens more when doing things fast
@@ -25,6 +31,7 @@ Transactions fail with "nonce too low" error when playing multiple games quickly
 #### How to Find the Problem
 
 1. **Check the game state**:
+
    ```bash
    npx hardhat --network <network> task:game:info --game-id <gameId>
    ```
@@ -56,6 +63,7 @@ Transactions fail with "nonce too low" error when playing multiple games quickly
 After both players submit moves, you can't decrypt the result. You get a "permission" error.
 
 **What you see:**
+
 - `getResult` works and returns encrypted value
 - Decryption fails with permission error
 - Game shows result is computed
@@ -63,9 +71,11 @@ After both players submit moves, you can't decrypt the result. You get a "permis
 #### How to Find the Problem
 
 1. **Check if result was computed**:
+
    ```bash
    npx hardhat --network <network> task:game:info --game-id <gameId>
    ```
+
    Make sure `resultComputed` is true.
 
 2. **Check you're using the right address**: Make sure you're using the correct contract address
@@ -98,6 +108,7 @@ After both players submit moves, you can't decrypt the result. You get a "permis
 In single-player mode, the opponent's move should be generated automatically, but it's not happening.
 
 **What you see:**
+
 - Game created with `address(0)` as player2
 - Player submits move
 - Result not computed
@@ -106,19 +117,22 @@ In single-player mode, the opponent's move should be generated automatically, bu
 #### How to Find the Problem
 
 1. **Check if it's actually single-player**:
+
    ```bash
    npx hardhat --network <network> task:game:info --game-id <gameId>
    ```
+
    Make sure `player2` is `0x0000...` (zero address).
 
 2. **Check transaction logs**: Look for `MoveSubmitted` events to see if opponent move was generated
 
-3. **Verify randomness**: The opponent move uses `block.difficulty` for randomness - make sure you're on a network that supports it
+3. **Verify randomness**: The opponent move uses `block.prevrandao` for randomness - make sure you're on a network that
+   supports it
 
 #### What's Probably Wrong
 
 - Not using `address(0)` when creating the game
-- Network doesn't support `block.difficulty` (use a compatible network)
+- Network doesn't support `block.prevrandao` (use a compatible network)
 - Transaction failed silently
 
 #### How to Fix It

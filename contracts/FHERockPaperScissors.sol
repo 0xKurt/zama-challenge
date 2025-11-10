@@ -7,7 +7,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {IFHERockPaperScissors} from "./IFHERockPaperScissors.sol";
 
 /// @title A confidential Rock-Paper-Scissors game contract using FHEVM
-/// @author zama-challenge
+/// @author 0xKurt
 /// @notice Enables two players to play Rock-Paper-Scissors with fully encrypted moves.
 /// @notice Players submit encrypted moves that remain private throughout the game.
 /// @notice Only the final result (tie, player1 wins, or player2 wins) is revealed after both moves are submitted.
@@ -22,6 +22,7 @@ contract FHERockPaperScissors is EthereumConfig, IFHERockPaperScissors, Reentran
 
     /// @notice Represents a single Rock-Paper-Scissors game between two players
     /// @dev All move and result values are encrypted using FHE to preserve privacy
+    // solhint-disable-next-line gas-struct-packing
     struct Game {
         address player1; /// @dev The address of the first player (game creator)
         address player2; /// @dev The address of the second player (address(0) for single-player games)
@@ -35,24 +36,26 @@ contract FHERockPaperScissors is EthereumConfig, IFHERockPaperScissors, Reentran
 
     /// @notice Mapping from game ID to game data
     /// @dev Game IDs are sequential integers starting from 0
-    mapping(uint256 => Game) public games;
+    // solhint-disable-next-line named-parameters-mapping
+    mapping(uint256 gameId => Game game) public games;
 
     /// @notice Counter for generating unique game IDs
     /// @dev Incremented each time a new game is created
     uint256 public gameCounter;
 
     /// @notice Creates a new game between two players
-    /// @param player2 The address of the second player who will participate in the game (address(0) for single-player mode)
+    /// @param player2 The address of the second player (address(0) for single-player mode)
     /// @return gameId A unique identifier for the newly created game
     /// @dev The caller becomes player1 and player2 is the specified address.
-    /// @dev If player2 is address(0), single-player mode is enabled and opponent's move will be generated automatically.
+    /// @dev If player2 is address(0), single-player mode is enabled and opponent's move will be auto-generated.
     /// @dev If player2 is not address(0), it cannot be the same as the caller.
     /// @dev The game is initialized with encrypted zero values for moves and result.
     /// @dev Emits a GameCreated event with the gameId, both player addresses, and timestamp.
     function createGame(address player2) external returns (uint256) {
         if (player2 != address(0) && player2 == msg.sender) revert CannotPlayAgainstYourself();
 
-        uint256 gameId = gameCounter++;
+        uint256 gameId = gameCounter;
+        ++gameCounter;
         games[gameId] = Game({
             player1: msg.sender,
             player2: player2,
@@ -85,6 +88,7 @@ contract FHERockPaperScissors is EthereumConfig, IFHERockPaperScissors, Reentran
         externalEuint32 encryptedMove,
         bytes calldata inputProof
     ) external nonReentrant {
+        // solhint-disable-next-line gas-strict-inequalities
         if (gameId >= gameCounter) revert GameDoesNotExist(gameId);
 
         Game storage game = games[gameId];
@@ -94,7 +98,21 @@ contract FHERockPaperScissors is EthereumConfig, IFHERockPaperScissors, Reentran
         if (game.resultComputed) revert GameAlreadyCompleted();
 
         euint32 move = FHE.fromExternal(encryptedMove, inputProof);
+        FHE.allowThis(move);
 
+        _validateAndSubmitMove(gameId, game, sender, move);
+
+        if (game.player1Submitted && game.player2Submitted) {
+            _computeResult(gameId);
+        }
+    }
+
+    /// @notice Validates player and submits their move
+    /// @param gameId The game identifier
+    /// @param game The game storage reference
+    /// @param sender The address submitting the move
+    /// @param move The encrypted move
+    function _validateAndSubmitMove(uint256 gameId, Game storage game, address sender, euint32 move) internal {
         address player1 = game.player1;
         address player2 = game.player2;
         bool isPlayer1 = sender == player1;
@@ -104,15 +122,12 @@ contract FHERockPaperScissors is EthereumConfig, IFHERockPaperScissors, Reentran
             revert NotAPlayerInThisGame();
         }
 
-        FHE.allowThis(move);
-
         if (isPlayer1) {
             if (game.player1Submitted) revert Player1AlreadySubmitted();
             game.move1 = move;
             game.player1Submitted = true;
             emit MoveSubmitted(gameId, sender, true, block.timestamp);
 
-            // If single-player mode (player2 is address(0)), automatically generate and submit opponent's move
             if (player2 == address(0)) {
                 _generateAndSubmitOpponentMove(gameId);
             }
@@ -122,23 +137,19 @@ contract FHERockPaperScissors is EthereumConfig, IFHERockPaperScissors, Reentran
             game.player2Submitted = true;
             emit MoveSubmitted(gameId, sender, false, block.timestamp);
         }
-
-        if (game.player1Submitted && game.player2Submitted) {
-            _computeResult(gameId);
-        }
     }
 
     /// @notice Generates and submits the opponent's move for single-player games
     /// @param gameId The unique identifier of the game
-    /// @dev Uses on-chain randomness (block.difficulty) to generate a random move (1-3).
+    /// @dev Uses on-chain randomness (block.prevrandao) to generate a random move (1-3).
     /// @dev The move is encrypted using FHE.asEuint32() and set as player2's move.
     /// @dev This function is called automatically when player1 submits their move in single-player mode.
     function _generateAndSubmitOpponentMove(uint256 gameId) internal {
         Game storage game = games[gameId];
 
-        // Generate random move using block.difficulty
+        // Generate random move using block.prevrandao
         uint32 randomMove = uint32(
-            (uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty, msg.sender))) % 3) + 1
+            (uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender))) % 3) + 1
         ); // 1, 2, or 3
 
         // Encrypt the random move using FHE
@@ -192,6 +203,7 @@ contract FHERockPaperScissors is EthereumConfig, IFHERockPaperScissors, Reentran
     /// @dev Only players who participated in the game have permission to decrypt this value.
     /// @dev Reverts if the game does not exist or if the result has not been computed yet.
     function getResult(uint256 gameId) external view returns (euint32) {
+        // solhint-disable-next-line gas-strict-inequalities
         if (gameId >= gameCounter) revert GameDoesNotExist(gameId);
 
         Game storage game = games[gameId];
@@ -217,6 +229,7 @@ contract FHERockPaperScissors is EthereumConfig, IFHERockPaperScissors, Reentran
         view
         returns (address player1, address player2, bool player1Submitted, bool player2Submitted, bool resultComputed)
     {
+        // solhint-disable-next-line gas-strict-inequalities
         if (gameId >= gameCounter) revert GameDoesNotExist(gameId);
 
         Game storage game = games[gameId];

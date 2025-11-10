@@ -5,6 +5,7 @@ import {euint32, externalEuint32} from "@fhevm/solidity/lib/FHE.sol";
 
 /// @title Interface for FHERockPaperScissors contract
 /// @notice Defines the public API for the confidential Rock-Paper-Scissors game
+/// @author 0xKurt
 interface IFHERockPaperScissors {
     // Custom errors
     error CannotPlayAgainstYourself();
@@ -18,11 +19,41 @@ interface IFHERockPaperScissors {
     error InvalidMove();
 
     // Events
+    /// @notice Emitted when a new game is created
+    /// @param gameId The unique identifier of the game
+    /// @param player1 The address of the first player
+    /// @param player2 The address of the second player (address(0) for single-player games)
+    /// @param timestamp The block timestamp when the game was created
     event GameCreated(uint256 indexed gameId, address indexed player1, address indexed player2, uint256 timestamp);
+
+    /// @notice Emitted when a player submits their move
+    /// @param gameId The unique identifier of the game
+    /// @param player The address of the player who submitted the move
+    /// @param isPlayer1 True if the move was submitted by player1, false if by player2
+    /// @param timestamp The block timestamp when the move was submitted
+    /* solhint-disable gas-indexed-events */
     event MoveSubmitted(uint256 indexed gameId, address indexed player, bool isPlayer1, uint256 timestamp);
+    /* solhint-enable gas-indexed-events */
+
+    /// @notice Emitted when the game result is computed
+    /// @param gameId The unique identifier of the game
+    /// @param timestamp The block timestamp when the result was computed
+    /* solhint-disable gas-indexed-events */
     event ResultComputed(uint256 indexed gameId, uint256 timestamp);
 
+    /* solhint-enable gas-indexed-events */
+
     // Public state variables
+    /// @notice Gets the game data for a given game ID
+    /// @param gameId The unique identifier of the game
+    /// @return player1 The address of the first player
+    /// @return player2 The address of the second player (address(0) for single-player games)
+    /// @return move1 The encrypted move from player1
+    /// @return move2 The encrypted move from player2
+    /// @return result The encrypted result value
+    /// @return player1Submitted True if player1 has submitted their move
+    /// @return player2Submitted True if player2 has submitted their move
+    /// @return resultComputed True if the result has been computed
     function games(
         uint256 gameId
     )
@@ -39,6 +70,8 @@ interface IFHERockPaperScissors {
             bool resultComputed
         );
 
+    /// @notice Gets the current game counter
+    /// @return The current number of games created (next game ID will be this value)
     function gameCounter() external view returns (uint256);
 
     /// @notice Creates a new game between two players
